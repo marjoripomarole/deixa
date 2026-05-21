@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
       const { extractText } = await import("unpdf")
       const buffer = await file.arrayBuffer()
       const uint8 = new Uint8Array(buffer)
-      const { text: extracted } = await extractText(uint8, { mergePages: true })
-      text = extracted
+      const { text: extracted } = await extractText(uint8, { mergePages: false })
+      // mergePages:false returns per-page strings with proper newlines; join with page break
+      text = Array.isArray(extracted) ? extracted.join("\n\n") : extracted
     } else {
       text = await file.text()
     }
