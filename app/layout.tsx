@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Decora Linhas – Memorização de roteiros",
+  title: "DecoraTexto – Memorização de roteiros",
   description: "Aplicativo para atores brasileiros memorizarem suas falas com texto em voz para o português brasileiro",
 };
 
