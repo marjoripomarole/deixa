@@ -88,24 +88,24 @@ export default function ScriptUploader({ onParsed }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Drop zone */}
       <label
         htmlFor={inputId}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`flex flex-col items-center justify-center cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-all
+        className={`flex flex-col items-center justify-center cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-all
           ${dragging
             ? "border-wine bg-wine/5 scale-[1.01]"
             : "border-charcoal/20 hover:border-wine/50 hover:bg-wine/3"
           }`}
       >
-        <div className="text-4xl mb-3 pointer-events-none select-none">📄</div>
+        <div className="text-3xl mb-2 pointer-events-none select-none">📄</div>
         <p className="text-sm font-semibold text-charcoal pointer-events-none">
           {dragging ? "Solte aqui" : "Arraste o roteiro aqui"}
         </p>
-        <p className="text-xs text-charcoal/40 mt-1 pointer-events-none">.txt ou .pdf • máx. 10 MB</p>
+        <p className="text-xs text-charcoal/40 mt-0.5 pointer-events-none">.txt ou .pdf • máx. 10 MB</p>
       </label>
 
       <input
