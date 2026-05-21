@@ -8,13 +8,6 @@ interface Props {
   onBack: () => void
 }
 
-const CARDS = [
-  "bg-wine/10 border-wine/40 text-wine hover:bg-wine/20",
-  "bg-gold/10 border-gold/40 text-[#6b5218] hover:bg-gold/20",
-  "bg-charcoal/8 border-charcoal/20 text-charcoal hover:bg-charcoal/12",
-  "bg-wine/5 border-gold/30 text-wine-dark hover:bg-wine/10",
-]
-
 export default function CharacterSelector({ script, onSelect, onBack }: Props) {
   const counts = script.characters.reduce<Record<string, number>>((acc, c) => {
     acc[c] = script.lines.filter((l) => l.character === c && !l.isStageDirection).length
@@ -22,26 +15,45 @@ export default function CharacterSelector({ script, onSelect, onBack }: Props) {
   }, {})
 
   return (
-    <div className="w-full max-w-xl mx-auto space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-charcoal">{script.title}</h2>
-        <p className="text-charcoal/60 mt-1">Qual personagem você vai interpretar?</p>
+    <div className="w-full max-w-lg mx-auto space-y-10">
+
+      {/* Header */}
+      <div className="text-center space-y-3">
+        <p className="text-[10px] tracking-[0.3em] text-gold/60 uppercase">Roteiro carregado</p>
+        <h2 className="font-display font-bold text-cream text-3xl leading-tight">{script.title}</h2>
+        <p className="text-cream/40 text-sm">Qual personagem você vai interpretar?</p>
       </div>
+
+      {/* Character cards */}
       <div className="grid grid-cols-2 gap-3">
         {script.characters.map((char, i) => (
-          <button key={char} onClick={() => onSelect(char)}
-            className={`rounded-xl border-2 px-4 py-3 text-left transition-all ${CARDS[i % CARDS.length]}`}>
-            <div className="font-bold text-sm">{char}</div>
-            <div className="text-xs opacity-60 mt-0.5">
+          <button
+            key={char}
+            onClick={() => onSelect(char)}
+            className="group relative flex flex-col gap-2 rounded-2xl border border-white/8 bg-white/4 px-5 py-5 text-left transition-all duration-200 hover:border-wine/50 hover:bg-wine/10 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span className="font-mono text-[10px] tracking-widest text-gold/40 group-hover:text-gold/70 transition-colors">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span className="font-display font-bold text-cream text-xl leading-tight break-words">
+              {char}
+            </span>
+            <span className="text-cream/30 text-xs group-hover:text-cream/50 transition-colors">
               {counts[char]} {counts[char] === 1 ? "fala" : "falas"}
-            </div>
+            </span>
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-wine/0 group-hover:text-wine/60 transition-all text-lg">→</span>
           </button>
         ))}
       </div>
-      <button onClick={onBack}
-        className="w-full text-sm text-charcoal/40 hover:text-wine underline transition-colors">
-        Trocar roteiro
-      </button>
+
+      <div className="text-center">
+        <button
+          onClick={onBack}
+          className="text-xs text-cream/25 hover:text-cream/60 transition-colors underline underline-offset-4"
+        >
+          Trocar roteiro
+        </button>
+      </div>
     </div>
   )
 }

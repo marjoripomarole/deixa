@@ -81,48 +81,61 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
   if (!current) return null
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
+    <div className="w-full max-w-2xl mx-auto flex flex-col gap-5">
 
-      {/* Header */}
+      {/* Gold progress bar */}
+      <div className="h-0.5 rounded-full bg-white/5 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gold transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* Header row */}
       <div className="flex items-center justify-between">
-        <button onClick={() => { stop(); onBack() }}
-          className="text-sm text-charcoal/40 hover:text-wine transition-colors">← Voltar</button>
-        <span className="text-xs font-mono text-charcoal/40">{index + 1} / {lines.length}</span>
-        <button onClick={() => setShowSettings((s) => !s)}
-          className="text-sm text-charcoal/40 hover:text-wine transition-colors">⚙️ Ajustes</button>
+        <button
+          onClick={() => { stop(); onBack() }}
+          className="text-xs text-cream/30 hover:text-cream/70 transition-colors tracking-wide"
+        >
+          ← Voltar
+        </button>
+        <span className="font-mono text-xs text-cream/20">{index + 1} / {lines.length}</span>
+        <button
+          onClick={() => setShowSettings((s) => !s)}
+          className="text-xs text-cream/30 hover:text-cream/70 transition-colors"
+        >
+          ⚙ Ajustes
+        </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1.5 rounded-full bg-charcoal/10">
-        <div className="h-1.5 rounded-full bg-gold transition-all duration-300" style={{ width: `${progress}%` }} />
-      </div>
-
-      {/* Settings */}
+      {/* Settings panel */}
       {showSettings && (
-        <div className="rounded-xl border border-gold/30 bg-warm-white p-4 space-y-3 text-sm">
+        <div className="rounded-2xl border border-white/8 bg-white/4 p-5 space-y-4 text-sm">
           <label className="flex items-center justify-between">
-            <span className="text-charcoal/70">Leitura automática</span>
-            <button onClick={() => setAutoPlay((a) => !a)}
-              className={`relative w-10 h-6 rounded-full transition-colors ${autoPlay ? "bg-wine" : "bg-charcoal/20"}`}>
-              <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-warm-white transition-transform ${autoPlay ? "translate-x-4" : ""}`} />
+            <span className="text-cream/60 text-xs tracking-wide">Leitura automática</span>
+            <button
+              onClick={() => setAutoPlay((a) => !a)}
+              className={`relative w-10 h-5 rounded-full transition-colors ${autoPlay ? "bg-wine" : "bg-white/10"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-cream transition-transform shadow-sm ${autoPlay ? "translate-x-5" : ""}`} />
             </button>
           </label>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-charcoal/70">Velocidade da voz</span>
-            <div className="flex items-center gap-2">
+            <span className="text-cream/60 text-xs tracking-wide">Velocidade</span>
+            <div className="flex items-center gap-3">
               <input type="range" min={0.5} max={1.5} step={0.1} value={speechRate}
                 onChange={(e) => setSpeechRate(Number(e.target.value))}
-                className="w-24 accent-[#8B1E3F]" />
-              <span className="text-charcoal/50 w-8">{speechRate.toFixed(1)}x</span>
+                className="w-24 accent-[#C89B3C]" />
+              <span className="text-cream/40 text-xs w-8 tabular-nums">{speechRate.toFixed(1)}×</span>
             </div>
           </div>
           {script.characters.filter(c => c !== playerCharacter).length > 0 && (
-            <div className="pt-1 border-t border-gold/20">
-              <p className="text-xs font-medium text-charcoal/40 mb-2">Vozes atribuídas</p>
+            <div className="pt-3 border-t border-white/5 space-y-2">
+              <p className="text-[10px] tracking-widest text-cream/25 uppercase">Vozes atribuídas</p>
               {script.characters.filter(c => c !== playerCharacter).map((char) => (
-                <div key={char} className="flex justify-between text-xs text-charcoal/60">
-                  <span className="font-semibold">{char}</span>
-                  <span>{VOICES.find(v => v.id === voiceMap[char])?.name ?? "—"}</span>
+                <div key={char} className="flex justify-between text-xs">
+                  <span className="text-cream/60 font-semibold">{char}</span>
+                  <span className="text-cream/30">{VOICES.find(v => v.id === voiceMap[char])?.name ?? "—"}</span>
                 </div>
               ))}
             </div>
@@ -130,44 +143,66 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
         </div>
       )}
 
-      {/* Character label */}
-      <div className={`text-xs font-bold tracking-widest uppercase px-3 py-1 rounded-full w-fit border
-        ${isPlayerLine
-          ? "bg-wine/10 border-wine/35 text-wine"
-          : "bg-charcoal/5 border-charcoal/15 text-charcoal/50"}`}>
-        {current.character}{isPlayerLine && " (você)"}
+      {/* Character badge */}
+      <div>
+        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1 rounded-full border
+          ${isPlayerLine
+            ? "border-wine/40 bg-wine/15 text-wine"
+            : "border-white/10 bg-white/5 text-cream/40"
+          }`}>
+          {isPlayerLine && <span className="w-1 h-1 rounded-full bg-wine inline-block" />}
+          {current.character}
+          {isPlayerLine && " — você"}
+        </span>
       </div>
 
       {/* Line card */}
-      <div className={`rounded-2xl border-2 p-8 min-h-[180px] flex flex-col justify-center gap-4
-        ${isPlayerLine ? "border-wine/25 bg-wine/5" : "border-gold/30 bg-warm-white"}`}>
+      <div className={`rounded-2xl border-2 p-8 md:p-10 min-h-[220px] flex flex-col justify-center gap-6 transition-colors
+        ${isPlayerLine
+          ? "border-wine/25 bg-wine/8"
+          : "border-white/8 bg-white/3"
+        }`}>
+
         {isPlayerLine ? (
           <>
-            {revealed
-              ? <p className="text-xl leading-relaxed font-medium text-charcoal">{current.text}</p>
-              : (
-                <div className="flex flex-wrap gap-1">
-                  {current.text.split(" ").map((w, i) => (
-                    <span key={i} className="inline-block rounded h-5 bg-wine/25 opacity-70"
-                      style={{ width: `${Math.max(24, w.length * 9)}px` }} />
-                  ))}
-                </div>
-              )}
-            <button onClick={() => setRevealed((r) => !r)}
-              className="self-start text-sm font-semibold text-wine hover:text-wine-dark underline transition-colors">
+            {revealed ? (
+              <p className="font-display text-2xl md:text-3xl leading-relaxed font-medium text-cream">
+                {current.text}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 items-end">
+                {current.text.split(" ").map((w, i) => (
+                  <span
+                    key={i}
+                    className="inline-block rounded-md h-6 bg-wine/25"
+                    style={{ width: `${Math.max(28, w.length * 10)}px` }}
+                  />
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setRevealed((r) => !r)}
+              className="self-start text-xs font-semibold tracking-wide text-wine/70 hover:text-wine border border-wine/20 hover:border-wine/50 rounded-lg px-4 py-2 transition-all"
+            >
               {revealed ? "Ocultar fala" : "Revelar fala"}
             </button>
           </>
         ) : (
           <>
-            <p className="text-xl leading-relaxed text-charcoal/80">{current.text}</p>
-            <button onClick={playCurrentLine} disabled={speaking || loading}
-              className="self-start flex items-center gap-2 text-sm font-semibold text-charcoal/50 hover:text-wine transition-colors disabled:opacity-40">
+            <p className="font-display text-2xl md:text-3xl leading-relaxed text-cream/80">
+              {current.text}
+            </p>
+            <button
+              onClick={playCurrentLine}
+              disabled={speaking || loading}
+              className="self-start flex items-center gap-2 text-xs font-semibold tracking-wide text-cream/40 hover:text-gold border border-white/10 hover:border-gold/30 rounded-lg px-4 py-2 transition-all disabled:opacity-30"
+            >
               {loading
-                ? <><span className="animate-spin inline-block">⏳</span> Carregando voz...</>
+                ? <><span className="animate-spin inline-block text-sm">⏳</span> Carregando...</>
                 : speaking
-                ? <><span className="animate-pulse">🔊</span> Reproduzindo...</>
-                : <>🔊 Ouvir novamente</>}
+                ? <><span className="animate-pulse text-sm">🔊</span> Reproduzindo...</>
+                : <>🔊 Ouvir novamente</>
+              }
             </button>
           </>
         )}
@@ -175,24 +210,33 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
 
       {/* Navigation */}
       <div className="flex gap-3">
-        <button onClick={prev} disabled={index === 0}
-          className="flex-1 rounded-xl border border-gold/40 py-3 font-medium text-charcoal/60 hover:bg-warm-white disabled:opacity-30 transition-colors">
+        <button
+          onClick={prev}
+          disabled={index === 0}
+          className="flex-1 rounded-xl border border-white/10 py-3.5 text-sm font-medium text-cream/50 hover:bg-white/5 hover:text-cream/80 disabled:opacity-20 transition-all"
+        >
           ← Anterior
         </button>
         {index === lines.length - 1 ? (
-          <button onClick={() => { setIndex(0); setRevealed(false) }}
-            className="flex-1 rounded-xl bg-gold py-3 font-semibold text-warm-white hover:bg-[#b08930] transition-colors">
+          <button
+            onClick={() => { setIndex(0); setRevealed(false) }}
+            className="flex-1 rounded-xl bg-gold/90 hover:bg-gold py-3.5 text-sm font-bold text-charcoal transition-colors"
+          >
             Reiniciar 🎉
           </button>
         ) : (
-          <button onClick={next}
-            className="flex-1 rounded-xl bg-wine py-3 font-semibold text-warm-white hover:bg-wine-dark transition-colors">
+          <button
+            onClick={next}
+            className="flex-1 rounded-xl bg-wine hover:bg-wine-dark py-3.5 text-sm font-bold text-cream transition-colors"
+          >
             Próxima →
           </button>
         )}
       </div>
 
-      <p className="text-center text-xs text-charcoal/30">← → navegar • Espaço: revelar / ouvir</p>
+      <p className="text-center text-[10px] tracking-widest text-cream/15 uppercase">
+        ← → navegar &nbsp;•&nbsp; Espaço: revelar / ouvir
+      </p>
     </div>
   )
 }
