@@ -18,13 +18,27 @@ export default function ScriptUploader({ onParsed }: Props) {
   async function handleFile(file: File) {
     setError("")
     setLoading(true)
-    const form = new FormData()
-    form.append("file", file)
-    const res = await fetch("/api/parse-script", { method: "POST", body: form })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error ?? "Erro ao processar arquivo"); return }
-    onParsed(data as ParsedScript)
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      const res = await fetch("/api/parse-script", { method: "POST", body: form })
+      let data: Record<string, unknown>
+      try {
+        data = await res.json()
+      } catch {
+        setError("Resposta inválida do servidor. Tente novamente.")
+        return
+      }
+      if (!res.ok) {
+        setError((data.error as string) ?? "Erro ao processar arquivo")
+        return
+      }
+      onParsed(data as unknown as ParsedScript)
+    } catch {
+      setError("Erro de conexão. Verifique sua internet e tente novamente.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handlePasteSubmit() {

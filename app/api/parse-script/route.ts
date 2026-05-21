@@ -1,42 +1,79 @@
 import { NextRequest, NextResponse } from "next/server"
 import { parseScriptText } from "@/lib/scriptParser"
 
-export async function POST(req: NextRequest) {
-  const formData = await req.formData()
-  const file = formData.get("file") as File | null
+function isPdf(file: File): boolean {
+  return (
+    file.type === "application/pdf" ||
+    file.type === "application/x-pdf" ||
+    file.name.toLowerCase().endsWith(".pdf")
+  )
+}
 
+function isTxt(file: File): boolean {
+  return (
+    file.type === "text/plain" ||
+    file.type === "" ||
+    file.name.toLowerCase().endsWith(".txt")
+  )
+}
+
+export async function POST(req: NextRequest) {
+  let formData: FormData
+  try {
+    formData = await req.formData()
+  } catch {
+    return NextResponse.json({ error: "Erro ao receber o arquivo" }, { status: 400 })
+  }
+
+  const file = formData.get("file") as File | null
   if (!file) {
     return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 })
   }
 
-  const allowedTypes = ["text/plain", "application/pdf"]
-  if (!allowedTypes.includes(file.type)) {
-    return NextResponse.json({ error: "Tipo de arquivo inválido. Use .txt ou .pdf" }, { status: 400 })
+  if (!isPdf(file) && !isTxt(file)) {
+    return NextResponse.json(
+      { error: `Tipo de arquivo não suportado (${file.type || "desconhecido"}). Use .txt ou .pdf` },
+      { status: 400 }
+    )
   }
 
-  const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
+  const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "Arquivo muito grande (máx. 5 MB)" }, { status: 400 })
+    return NextResponse.json({ error: "Arquivo muito grande (máx. 10 MB)" }, { status: 400 })
   }
 
   let text = ""
 
-  if (file.type === "application/pdf") {
-    const buffer = Buffer.from(await file.arrayBuffer())
-    // Dynamic import to avoid issues with pdf-parse in edge runtime
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>
-    const data = await pdfParse(buffer)
-    text = data.text
-  } else {
-    text = await file.text()
+  try {
+    if (isPdf(file)) {
+      const { extractText } = await import("unpdf")
+      const buffer = await file.arrayBuffer()
+      const uint8 = new Uint8Array(buffer)
+      const { text: extracted } = await extractText(uint8, { mergePages: true })
+      text = extracted
+    } else {
+      text = await file.text()
+    }
+  } catch (err) {
+    console.error("Erro ao extrair texto do arquivo:", err)
+    return NextResponse.json(
+      { error: "Não foi possível ler o arquivo. Tente exportar o PDF como texto ou cole o conteúdo diretamente." },
+      { status: 422 }
+    )
+  }
+
+  if (!text.trim()) {
+    return NextResponse.json(
+      { error: "O arquivo está vazio ou é um PDF escaneado (imagem). Cole o texto diretamente." },
+      { status: 422 }
+    )
   }
 
   const parsed = parseScriptText(text, file.name)
 
   if (parsed.characters.length === 0) {
     return NextResponse.json(
-      { error: "Não foi possível detectar personagens. Certifique-se de que os nomes estão em MAIÚSCULAS." },
+      { error: "Nenhum personagem detectado. Os nomes devem estar em MAIÚSCULAS em uma linha separada." },
       { status: 422 }
     )
   }
