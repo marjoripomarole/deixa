@@ -1,54 +1,60 @@
-// Uses the browser's built-in SpeechSynthesis API with pt-BR voices.
-// On macOS/iOS: Luciana; Chrome/Android: Google pt-BR; Windows: Francisca.
-// No API calls needed — runs entirely client-side.
+// ElevenLabs TTS via server-side proxy — checks audio cache first,
+// falls back to on-demand API call if a line wasn't preloaded.
+import { getCachedUrl } from "./audioCache"
 
-let currentUtterance: SpeechSynthesisUtterance | null = null
-
-function getPtBRVoices(): SpeechSynthesisVoice[] {
-  return window.speechSynthesis
-    .getVoices()
-    .filter((v) => v.lang === "pt-BR" || v.lang === "pt_BR" || v.lang.startsWith("pt-BR"))
-}
+let currentAudio: HTMLAudioElement | null = null
 
 export async function speak(
   text: string,
   voiceId: string,
-  options?: { rate?: number; onEnd?: () => void; onError?: () => void }
+  options?: { rate?: number; onEnd?: () => void; onError?: () => void },
+  lineId?: string
 ) {
   stop()
 
-  return new Promise<void>((resolve) => {
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = "pt-BR"
-    utter.rate = options?.rate ?? 1
+  const cached = lineId ? getCachedUrl(lineId) : null
+  let url: string
+  let owned = false // true if we created the URL and must revoke it
 
-    // Try to pick a specific pt-BR voice by index for character differentiation
-    const voices = getPtBRVoices()
-    const idx = parseInt(voiceId, 10)
-    if (voices.length > 0) utter.voice = voices[idx % voices.length]
+  if (cached) {
+    url = cached
+  } else {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voiceId }),
+    })
+    if (!res.ok) { options?.onError?.(); return }
+    const blob = await res.blob()
+    url = URL.createObjectURL(blob)
+    owned = true
+  }
 
-    currentUtterance = utter
+  const audio = new Audio(url)
+  audio.playbackRate = options?.rate ?? 1
+  currentAudio = audio
 
-    utter.onend = () => {
-      currentUtterance = null
-      options?.onEnd?.()
-      resolve()
-    }
-    utter.onerror = () => {
-      currentUtterance = null
-      options?.onError?.()
-      resolve()
-    }
+  audio.onended = () => {
+    if (owned) URL.revokeObjectURL(url)
+    currentAudio = null
+    options?.onEnd?.()
+  }
+  audio.onerror = () => {
+    if (owned) URL.revokeObjectURL(url)
+    currentAudio = null
+    options?.onError?.()
+  }
 
-    window.speechSynthesis.speak(utter)
-  })
+  await audio.play()
 }
 
 export function stop() {
-  window.speechSynthesis.cancel()
-  currentUtterance = null
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio = null
+  }
 }
 
 export function isSpeaking(): boolean {
-  return window.speechSynthesis.speaking
+  return currentAudio !== null && !currentAudio.paused
 }

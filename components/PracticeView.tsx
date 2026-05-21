@@ -4,14 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import type { ParsedScript, ScriptLine } from "@/types/script"
 import { speak, stop } from "@/lib/tts"
 import { VOICES } from "@/lib/voices"
-
-function getPtBRVoiceNames(): string[] {
-  if (typeof window === "undefined") return []
-  return window.speechSynthesis
-    .getVoices()
-    .filter((v) => v.lang === "pt-BR" || v.lang === "pt_BR" || v.lang.startsWith("pt-BR"))
-    .map((v) => v.name)
-}
+import { preloadLines, clearCache, onStatus, type PreloadStatus } from "@/lib/audioCache"
 
 interface Props {
   script: ParsedScript
@@ -41,20 +34,45 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
   const [speechRate, setSpeechRate] = useState(1)
   const [autoPlay, setAutoPlay] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
+  const [preload, setPreload] = useState<PreloadStatus>({ total: 0, loaded: 0, done: true })
 
   const current = lines[index]
   const isPlayerLine = current?.character === playerCharacter
   const progress = ((index + 1) / lines.length) * 100
 
+  // Kick off background preloading as soon as the view mounts
+  useEffect(() => {
+    const nonPlayerLines = lines.filter((l) => l.character !== playerCharacter)
+    const items = nonPlayerLines.map((l) => ({
+      id: l.id,
+      text: l.text,
+      voiceId: voiceMap[l.character] ?? VOICES[0].id,
+    }))
+
+    const unsub = onStatus(setPreload)
+    preloadLines(items) // fire-and-forget; status updates via onStatus
+
+    return () => {
+      unsub()
+      clearCache()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const playCurrentLine = useCallback(async () => {
     if (!current || isPlayerLine) return
     const voiceId = voiceMap[current.character] ?? VOICES[0].id
     setLoading(true); setSpeaking(true)
-    await speak(current.text, voiceId, {
-      rate: speechRate,
-      onEnd: () => { setSpeaking(false); setLoading(false) },
-      onError: () => { setSpeaking(false); setLoading(false) },
-    })
+    await speak(
+      current.text,
+      voiceId,
+      {
+        rate: speechRate,
+        onEnd: () => { setSpeaking(false); setLoading(false) },
+        onError: () => { setSpeaking(false); setLoading(false) },
+      },
+      current.id, // cache key
+    )
     setLoading(false)
   }, [current, isPlayerLine, voiceMap, speechRate])
 
@@ -99,6 +117,21 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
         />
       </div>
 
+      {/* Preload progress banner */}
+      {!preload.done && (
+        <div className="flex items-center gap-3 rounded-xl border border-gold/20 bg-gold/5 px-4 py-2.5">
+          <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gold/60 transition-all duration-300"
+              style={{ width: `${preload.total ? (preload.loaded / preload.total) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-[10px] tabular-nums text-gold/60 shrink-0">
+            Preparando vozes {preload.loaded}/{preload.total}
+          </span>
+        </div>
+      )}
+
       {/* Header row */}
       <div className="flex items-center justify-between">
         <button
@@ -139,20 +172,13 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
           </div>
           {script.characters.filter(c => c !== playerCharacter).length > 0 && (
             <div className="pt-3 border-t border-white/5 space-y-2">
-              <p className="text-[10px] tracking-widest text-cream/25 uppercase">Vozes atribuídas (pt-BR)</p>
-              {script.characters.filter(c => c !== playerCharacter).map((char) => {
-                const voiceNames = getPtBRVoiceNames()
-                const idx = parseInt(voiceMap[char] ?? "0", 10)
-                const name = voiceNames.length > 0
-                  ? voiceNames[idx % voiceNames.length]
-                  : "Voz do sistema (pt-BR)"
-                return (
-                  <div key={char} className="flex justify-between text-xs">
-                    <span className="text-cream/60 font-semibold">{char}</span>
-                    <span className="text-cream/30">{name}</span>
-                  </div>
-                )
-              })}
+              <p className="text-[10px] tracking-widest text-cream/25 uppercase">Vozes atribuídas</p>
+              {script.characters.filter(c => c !== playerCharacter).map((char) => (
+                <div key={char} className="flex justify-between text-xs">
+                  <span className="text-cream/60 font-semibold">{char}</span>
+                  <span className="text-cream/30">{VOICES.find(v => v.id === voiceMap[char])?.name ?? "—"}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
