@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import type { ParsedScript, ScriptLine } from "@/types/script"
 import { speak, stop } from "@/lib/tts"
+import { VOICES } from "@/lib/voices"
 
 interface Props {
   script: ParsedScript
@@ -10,46 +11,65 @@ interface Props {
   onBack: () => void
 }
 
-// Only lines with actual dialogue (no stage directions, no empty)
 function getPracticeLines(script: ParsedScript): ScriptLine[] {
   return script.lines.filter((l) => !l.isStageDirection && l.text.trim())
 }
 
+// Assign a distinct ElevenLabs voice to each non-player character
+function assignVoices(characters: string[], playerCharacter: string): Record<string, string> {
+  const others = characters.filter((c) => c !== playerCharacter)
+  const map: Record<string, string> = {}
+  others.forEach((char, i) => {
+    map[char] = VOICES[i % VOICES.length].id
+  })
+  return map
+}
+
 export default function PracticeView({ script, playerCharacter, onBack }: Props) {
   const lines = getPracticeLines(script)
+  const voiceMap = useMemo(
+    () => assignVoices(script.characters, playerCharacter),
+    [script.characters, playerCharacter]
+  )
+
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [speaking, setSpeaking] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [speechRate, setSpeechRate] = useState(1)
   const [autoPlay, setAutoPlay] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
-  const cardRef = useRef<HTMLDivElement>(null)
 
   const current = lines[index]
   const isPlayerLine = current?.character === playerCharacter
   const progress = ((index + 1) / lines.length) * 100
 
-  const playCurrentLine = useCallback(() => {
+  const playCurrentLine = useCallback(async () => {
     if (!current || isPlayerLine) return
+    const voiceId = voiceMap[current.character] ?? VOICES[0].id
+    setLoading(true)
     setSpeaking(true)
-    speak(current.text, speechRate, () => setSpeaking(false))
-  }, [current, isPlayerLine, speechRate])
+    await speak(current.text, voiceId, {
+      rate: speechRate,
+      onEnd: () => { setSpeaking(false); setLoading(false) },
+      onError: () => { setSpeaking(false); setLoading(false) },
+    })
+    setLoading(false)
+  }, [current, isPlayerLine, voiceMap, speechRate])
 
-  // Auto-play TTS when moving to another character's line
   useEffect(() => {
     setRevealed(false)
     if (autoPlay && current && !isPlayerLine) {
-      // Small delay so state settles
       const t = setTimeout(() => playCurrentLine(), 300)
       return () => clearTimeout(t)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, autoPlay])
 
-  // Skip to the next line that needs practice (player's lines) or stop at cues
   function next() {
     stop()
     setSpeaking(false)
+    setLoading(false)
     setRevealed(false)
     setIndex((i) => Math.min(i + 1, lines.length - 1))
   }
@@ -57,6 +77,7 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
   function prev() {
     stop()
     setSpeaking(false)
+    setLoading(false)
     setRevealed(false)
     setIndex((i) => Math.max(i - 1, 0))
   }
@@ -77,7 +98,7 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
 
   if (!current) return null
 
-  const done = index === lines.length - 1 && revealed
+  const done = index === lines.length - 1
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
@@ -115,19 +136,16 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
             <span className="text-zinc-600">Leitura automática</span>
             <button
               onClick={() => setAutoPlay((a) => !a)}
-              className={`w-10 h-6 rounded-full transition-colors ${autoPlay ? "bg-amber-400" : "bg-zinc-300"}`}
+              className={`relative w-10 h-6 rounded-full transition-colors ${autoPlay ? "bg-amber-400" : "bg-zinc-300"}`}
             >
-              <span className={`block w-4 h-4 rounded-full bg-white mx-1 transition-transform ${autoPlay ? "translate-x-4" : ""}`} />
+              <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${autoPlay ? "translate-x-4" : ""}`} />
             </button>
           </label>
           <label className="flex items-center justify-between gap-4">
             <span className="text-zinc-600">Velocidade da voz</span>
             <div className="flex items-center gap-2">
               <input
-                type="range"
-                min={0.5}
-                max={1.5}
-                step={0.1}
+                type="range" min={0.5} max={1.5} step={0.1}
                 value={speechRate}
                 onChange={(e) => setSpeechRate(Number(e.target.value))}
                 className="w-24 accent-amber-500"
@@ -135,6 +153,19 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
               <span className="text-zinc-500 w-8">{speechRate.toFixed(1)}x</span>
             </div>
           </label>
+          <div className="pt-1 border-t border-zinc-100">
+            <p className="text-xs text-zinc-400 font-medium mb-2">Vozes atribuídas</p>
+            {script.characters.filter(c => c !== playerCharacter).map((char) => {
+              const vid = voiceMap[char]
+              const voice = VOICES.find(v => v.id === vid)
+              return (
+                <div key={char} className="flex justify-between text-xs text-zinc-500">
+                  <span className="font-semibold">{char}</span>
+                  <span>{voice?.name ?? "—"}</span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -146,19 +177,17 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
       </div>
 
       {/* Line card */}
-      <div
-        ref={cardRef}
-        className={`rounded-2xl border-2 p-8 min-h-[180px] flex flex-col justify-center gap-4 transition-all
-          ${isPlayerLine ? "border-amber-300 bg-amber-50" : "border-zinc-200 bg-white"}`}
-      >
+      <div className={`rounded-2xl border-2 p-8 min-h-[180px] flex flex-col justify-center gap-4 transition-all
+        ${isPlayerLine ? "border-amber-300 bg-amber-50" : "border-zinc-200 bg-white"}`}>
         {isPlayerLine ? (
           <>
             {revealed ? (
               <p className="text-xl leading-relaxed text-zinc-800 font-medium">{current.text}</p>
             ) : (
-              <div className="space-y-2">
-                {current.text.split(" ").map((_, i) => (
-                  <span key={i} className="inline-block bg-amber-300 rounded h-5 mr-1" style={{ width: `${40 + (i % 4) * 20}px` }} />
+              <div className="flex flex-wrap gap-1">
+                {current.text.split(" ").map((w, i) => (
+                  <span key={i} className="inline-block bg-amber-300 rounded h-5 opacity-60"
+                    style={{ width: `${Math.max(24, w.length * 9)}px` }} />
                 ))}
               </div>
             )}
@@ -174,13 +203,13 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
             <p className="text-xl leading-relaxed text-zinc-700">{current.text}</p>
             <button
               onClick={playCurrentLine}
-              disabled={speaking}
+              disabled={speaking || loading}
               className="self-start flex items-center gap-2 text-sm font-semibold text-zinc-500 hover:text-zinc-800 transition-colors disabled:opacity-40"
             >
-              {speaking ? (
-                <>
-                  <span className="animate-pulse">🔊</span> Reproduzindo...
-                </>
+              {loading ? (
+                <><span className="animate-spin inline-block">⏳</span> Carregando voz...</>
+              ) : speaking ? (
+                <><span className="animate-pulse">🔊</span> Reproduzindo...</>
               ) : (
                 <>🔊 Ouvir novamente</>
               )}
@@ -208,15 +237,13 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
         ) : (
           <button
             onClick={next}
-            disabled={index === lines.length - 1}
-            className="flex-1 rounded-xl bg-amber-500 py-3 font-semibold text-white hover:bg-amber-600 disabled:opacity-30 transition-colors"
+            className="flex-1 rounded-xl bg-amber-500 py-3 font-semibold text-white hover:bg-amber-600 transition-colors"
           >
             Próxima →
           </button>
         )}
       </div>
 
-      {/* Keyboard hints */}
       <p className="text-center text-xs text-zinc-400">
         ← → navegar • Espaço: revelar / ouvir
       </p>

@@ -1,31 +1,53 @@
-// Wraps the Web Speech API for pt-BR TTS
+// ElevenLabs TTS via server-side proxy — key never exposed to browser
 
-let utterance: SpeechSynthesisUtterance | null = null
+let currentAudio: HTMLAudioElement | null = null
 
-export function speak(text: string, rate = 1, onEnd?: () => void) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return
+export async function speak(
+  text: string,
+  voiceId: string,
+  options?: { rate?: number; onEnd?: () => void; onError?: () => void }
+) {
   stop()
 
-  utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = "pt-BR"
-  utterance.rate = rate
+  const res = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voiceId }),
+  })
 
-  // Prefer a pt-BR voice if available
-  const voices = window.speechSynthesis.getVoices()
-  const ptBR = voices.find((v) => v.lang === "pt-BR") ?? voices.find((v) => v.lang.startsWith("pt"))
-  if (ptBR) utterance.voice = ptBR
+  if (!res.ok) {
+    options?.onError?.()
+    return
+  }
 
-  if (onEnd) utterance.onend = onEnd
-  window.speechSynthesis.speak(utterance)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+
+  const audio = new Audio(url)
+  audio.playbackRate = options?.rate ?? 1
+  currentAudio = audio
+
+  audio.onended = () => {
+    URL.revokeObjectURL(url)
+    currentAudio = null
+    options?.onEnd?.()
+  }
+  audio.onerror = () => {
+    URL.revokeObjectURL(url)
+    currentAudio = null
+    options?.onError?.()
+  }
+
+  await audio.play()
 }
 
 export function stop() {
-  if (typeof window === "undefined") return
-  window.speechSynthesis.cancel()
-  utterance = null
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio = null
+  }
 }
 
 export function isSpeaking(): boolean {
-  if (typeof window === "undefined") return false
-  return window.speechSynthesis.speaking
+  return currentAudio !== null && !currentAudio.paused
 }
