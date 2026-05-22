@@ -45,7 +45,15 @@ export async function speak(
     options?.onError?.()
   }
 
-  await audio.play()
+  try {
+    await audio.play()
+  } catch {
+    // Browser blocked autoplay (no user gesture) — reset state so
+    // the "Ouvir novamente" button stays clickable.
+    currentAudio = null
+    if (owned) URL.revokeObjectURL(url)
+    options?.onError?.()
+  }
 }
 
 export function stop() {
