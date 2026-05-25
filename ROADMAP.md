@@ -1,4 +1,4 @@
-# Decora Linhas — Production Roadmap
+# Deixa — Production Roadmap
 
 > Last updated: May 2026  
 > Current stack: Next.js 16 · Supabase · ElevenLabs · Vercel
@@ -234,7 +234,7 @@ Currently the app URL opens directly to the product. Add a marketing landing pag
 - Feature breakdown
 - Testimonials (reach out to early users)
 - Pricing section
-- SEO: target "como memorizar falas", "app para atores brasileiros", "decorar texto peça de teatro"
+- SEO: target "como memorizar falas", "app para atores brasileiros", "decorar texto peça de teatro", "deixa teatro", "ai scene partner"
 
 ### 6.6 LGPD Compliance
 Brazil's data protection law requires:

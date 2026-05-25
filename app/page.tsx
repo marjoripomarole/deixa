@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import type { ParsedScript } from "@/types/script"
 import type { User } from "@supabase/supabase-js"
 import ScriptUploader from "@/components/ScriptUploader"
@@ -32,32 +32,26 @@ export default function Home() {
 
   const supabase = useMemo(() => createClient(), [])
 
+  const fetchSavedScripts = useCallback(async () => {
+    const res = await fetch("/api/scripts")
+    if (res.ok) setSavedScripts(await res.json())
+  }, [])
+
   // Track auth state
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
+      if (user) void fetchSavedScripts()
       setAuthLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null)
+      const nextUser = session?.user ?? null
+      setUser(nextUser)
+      if (nextUser) void fetchSavedScripts()
+      else setSavedScripts([])
     })
     return () => subscription.unsubscribe()
-  }, [supabase])
-
-  // Load saved scripts when user logs in
-  useEffect(() => {
-    if (user) fetchSavedScripts()
-    else setSavedScripts([])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
-
-  // Reset saved badge when a different script is loaded
-  useEffect(() => { setSavedId(null) }, [script])
-
-  async function fetchSavedScripts() {
-    const res = await fetch("/api/scripts")
-    if (res.ok) setSavedScripts(await res.json())
-  }
+  }, [fetchSavedScripts, supabase])
 
   async function handleLogin() {
     await supabase.auth.signInWithOAuth({
@@ -94,7 +88,7 @@ export default function Home() {
     if (savedId === id) setSavedId(null)
   }
 
-  function handleParsed(s: ParsedScript) { setScript(s); setStage("select") }
+  function handleParsed(s: ParsedScript) { setScript(s); setSavedId(null); setStage("select") }
   function handleCharacterSelect(char: string) { setPlayerCharacter(char); setStage("practice") }
   function loadSaved(s: SavedScript) { setScript(s.parsed_script); setSavedId(s.id); setStage("select") }
 
@@ -107,7 +101,8 @@ export default function Home() {
           <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4 py-6">
 
             {/* Auth bar */}
-            <div className="w-full max-w-sm flex justify-end min-h-[28px]">
+            <div className="w-full max-w-sm flex items-center justify-between min-h-[28px]">
+              <span className="font-display text-lg font-black text-wine tracking-tight">Deixa</span>
               {!authLoading && (
                 user ? (
                   <div className="flex items-center gap-2">

@@ -20,8 +20,21 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "DecoraTexto – Memorização de roteiros",
-  description: "Aplicativo para atores brasileiros memorizarem suas falas com texto em voz para o português brasileiro",
+  metadataBase: new URL("https://deixa.app"),
+  applicationName: "Deixa",
+  title: "Deixa – Memorize suas falas",
+  description: "Seu parceiro de cena para praticar roteiros, ouvir deixas e memorizar falas com voz em português brasileiro.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Deixa – Memorize suas falas",
+    description: "Pratique roteiros, ouça deixas e memorize falas com voz em português brasileiro.",
+    url: "https://deixa.app",
+    siteName: "Deixa",
+    locale: "pt_BR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

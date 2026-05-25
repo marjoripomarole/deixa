@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { VOICES } from "@/lib/voices"
 
 const MODEL = "eleven_multilingual_v2"
 

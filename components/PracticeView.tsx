@@ -24,7 +24,7 @@ function assignVoices(characters: string[], playerCharacter: string): Record<str
 }
 
 export default function PracticeView({ script, playerCharacter, onBack }: Props) {
-  const lines = getPracticeLines(script)
+  const lines = useMemo(() => getPracticeLines(script), [script])
   const voiceMap = useMemo(() => assignVoices(script.characters, playerCharacter), [script.characters, playerCharacter])
 
   const [index, setIndex] = useState(0)
@@ -50,8 +50,7 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
     const unsub = onStatus(setPreload)
     preloadLines(items)
     return () => { unsub(); clearCache() }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [lines, playerCharacter, voiceMap])
 
   const playCurrentLine = useCallback(async () => {
     if (!current || isPlayerLine) return
@@ -66,32 +65,35 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
   }, [current, isPlayerLine, voiceMap, speechRate])
 
   useEffect(() => {
-    setRevealed(false)
     if (autoPlay && current && !isPlayerLine) {
       const t = setTimeout(() => playCurrentLine(), 300)
       return () => clearTimeout(t)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, autoPlay])
+  }, [index, autoPlay, current, isPlayerLine, playCurrentLine])
 
-  function next() {
+  const next = useCallback(() => {
     stop(); setSpeaking(false); setLoading(false); setRevealed(false)
     setIndex((i) => Math.min(i + 1, lines.length - 1))
-  }
-  function prev() {
+  }, [lines.length])
+
+  const prev = useCallback(() => {
     stop(); setSpeaking(false); setLoading(false); setRevealed(false)
     setIndex((i) => Math.max(i - 1, 0))
-  }
+  }, [])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowRight" || e.key === "Enter") next()
       if (e.key === "ArrowLeft") prev()
-      if (e.key === " ") { e.preventDefault(); isPlayerLine ? setRevealed((r) => !r) : playCurrentLine() }
+      if (e.key === " ") {
+        e.preventDefault()
+        if (isPlayerLine) setRevealed((r) => !r)
+        else void playCurrentLine()
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  })
+  }, [isPlayerLine, next, playCurrentLine, prev])
 
   if (!current) return null
 
