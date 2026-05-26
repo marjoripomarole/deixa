@@ -102,4 +102,19 @@ describe("practice view cue mode", () => {
       )
     })
   })
+
+  it("tracks player-line mastery during a practice session", () => {
+    render(<PracticeView script={script} playerCharacter="ANA" onBack={vi.fn()} />)
+
+    expect(screen.getByText("0/1 · 0%")).toBeTruthy()
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima →" }))
+
+    expect(screen.getByText("ANA — você")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Acertei" }))
+
+    expect(screen.getByText("1/1 · 100%")).toBeTruthy()
+    expect(screen.getByText("ANA — você · acertei")).toBeTruthy()
+    expect(screen.getByText("1/1 falas marcadas")).toBeTruthy()
+  })
 })

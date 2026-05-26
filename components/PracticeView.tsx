@@ -6,6 +6,8 @@ import { speak, stop } from "@/lib/tts"
 import { VOICES } from "@/lib/voices"
 import { preloadLines, clearCache, onStatus, type PreloadStatus } from "@/lib/audioCache"
 
+type LineAttempt = "passed" | "failed"
+
 interface Props {
   script: ParsedScript
   playerCharacter: string
@@ -51,11 +53,16 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
   const [cueMode, setCueMode] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [attempts, setAttempts] = useState<Record<string, LineAttempt>>({})
   const [preload, setPreload] = useState<PreloadStatus>({ total: 0, loaded: 0, failed: 0, done: true })
 
   const current = lines[index]
   const isPlayerLine = current?.character === playerCharacter
   const progress = ((index + 1) / lines.length) * 100
+  const playerLines = useMemo(() => lines.filter((l) => l.character === playerCharacter), [lines, playerCharacter])
+  const markedPlayerLines = playerLines.filter((l) => attempts[l.id])
+  const passedPlayerLines = playerLines.filter((l) => attempts[l.id] === "passed")
+  const mastery = playerLines.length ? Math.round((passedPlayerLines.length / playerLines.length) * 100) : 0
 
   useEffect(() => {
     const nonPlayerLines = lines.filter((l) => l.character !== playerCharacter)
@@ -99,6 +106,13 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
     stop(); setSpeaking(false); setLoading(false); setRevealed(false)
     setIndex((i) => Math.max(i - 1, 0))
   }, [])
+
+  const markCurrentLine = useCallback((attempt: LineAttempt) => {
+    if (!current || !isPlayerLine) return
+
+    setAttempts((currentAttempts) => ({ ...currentAttempts, [current.id]: attempt }))
+    next()
+  }, [current, isPlayerLine, next])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -155,7 +169,14 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
           className="text-xs text-ink/45 hover:text-ink/75 transition-colors tracking-wide">
           ← Voltar
         </button>
-        <span className="font-mono text-xs text-ink/35">{index + 1} / {lines.length}</span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-xs text-ink/35">{index + 1} / {lines.length}</span>
+          {playerLines.length > 0 && (
+            <span className="rounded-full border border-ink/10 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-ink/40">
+              {passedPlayerLines.length}/{playerLines.length} · {mastery}%
+            </span>
+          )}
+        </div>
         <button onClick={() => setShowSettings((s) => !s)}
           className="rounded-full border border-ink/10 px-3 py-1.5 text-xs text-ink/45 transition-colors hover:border-ink/20 hover:text-ink/75">
           Ajustes
@@ -220,6 +241,8 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
           {isPlayerLine && <span className="w-1 h-1 rounded-full bg-wine inline-block" />}
           {current.character}
           {isPlayerLine && " — você"}
+          {attempts[current.id] === "passed" && " · acertei"}
+          {attempts[current.id] === "failed" && " · revisar"}
         </span>
       </div>
 
@@ -248,6 +271,28 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
               className="self-start rounded-lg border border-wine/25 px-4 py-2 text-xs font-semibold tracking-wide text-wine transition-all hover:border-wine/50 hover:text-wine-dark">
               {revealed ? "Ocultar fala" : "Revelar fala"}
             </button>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                onClick={() => markCurrentLine("passed")}
+                aria-pressed={attempts[current.id] === "passed"}
+                className={`rounded-lg border px-4 py-3 text-sm font-semibold transition-all ${attempts[current.id] === "passed"
+                  ? "border-wine bg-wine text-warm-white"
+                  : "border-wine/25 text-wine hover:border-wine/50"
+                }`}
+              >
+                Acertei
+              </button>
+              <button
+                onClick={() => markCurrentLine("failed")}
+                aria-pressed={attempts[current.id] === "failed"}
+                className={`rounded-lg border px-4 py-3 text-sm font-semibold transition-all ${attempts[current.id] === "failed"
+                  ? "border-ink/40 bg-ink/10 text-ink/70"
+                  : "border-ink/15 text-ink/45 hover:border-ink/30 hover:text-ink/70"
+                }`}
+              >
+                Precisei ver
+              </button>
+            </div>
           </>
         ) : (
           <>
@@ -285,7 +330,11 @@ export default function PracticeView({ script, playerCharacter, onBack }: Props)
         )}
       </div>
 
-      <p className="text-center text-[10px] tracking-widest text-ink/20 uppercase">modo prática</p>
+      {playerLines.length > 0 && (
+        <p className="text-center text-[10px] tracking-widest text-ink/25 uppercase">
+          {markedPlayerLines.length}/{playerLines.length} falas marcadas
+        </p>
+      )}
     </div>
   )
 }

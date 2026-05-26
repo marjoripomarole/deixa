@@ -71,7 +71,22 @@ Track pass/fail on every line, every session.
 
 ---
 
-### 1.5 Scene / Exchange Looping
+### 1.5 Microphone Line Verification
+Let actors speak their own line out loud and have the app verify whether they know it.
+
+> **Why:** Manual pass/fail is useful, but microphone verification turns rehearsal into an actual active-recall test. The actor has to retrieve the line from memory, say it, and get immediate feedback. This makes progress tracking more trustworthy and gives the app a stronger reason to auto-advance active recall stages.
+
+**Build:**
+- Add a "Gravar fala" action on player lines
+- Use Web Speech API first for browser-native transcription; fall back to a manual pass/fail flow when unsupported
+- Compare the transcript to the expected line with tolerant matching for punctuation, accents, filler words, and small word-order mistakes
+- Score each attempt as correct / partial / missed
+- Store the result in `line_attempts` alongside manual pass/fail
+- Auto-advance to the next cue when the spoken line passes the threshold
+
+---
+
+### 1.6 Scene / Exchange Looping
 Let actors loop a specific exchange (A→B or A→B→A→B) continuously until comfortable.
 
 > **Why:** The most-requested missing feature in actor forums. Targeted repetition of a difficult exchange is more efficient than running the whole scene again. Background/locked-screen looping (so actors can pace the room without looking at the phone) is specifically called out as a differentiating feature with almost no current competition.
@@ -247,12 +262,12 @@ Brazil's data protection law requires:
 
 ## Phase 7 — Advanced (Future)
 
-### 7.1 Live Cue Detection (Speech Recognition)
-Like coldRead's killer feature: the app *listens* to the actor speak their line, detects when they finish (using the Web Speech API or Whisper), and automatically fires the next character's line — no button press needed.
+### 7.1 Hands-Free Live Cue Detection
+Extend microphone verification into a fully hands-free rehearsal mode: the app continuously listens, detects when the actor finishes a correct line, and automatically fires the next character's cue — no button press needed.
 
 > This creates a genuinely conversational rehearsal experience. It is the single largest UX leap available.
 
-**Build:** Web Speech API (free, browser-native) for cue detection. Fall back to a manual "tap to continue" button on unsupported browsers.
+**Build:** Build on Phase 1 microphone verification. Keep the microphone session open across the full scene, handle silence/interruptions, and fall back to a manual "tap to continue" button on unsupported browsers.
 
 ### 7.2 AI Pronunciation Coach
 After the actor records their lines, use a speech-to-text + phoneme comparison to flag mispronounced words. Especially valuable for verse or period dialogue with unfamiliar vocabulary.
@@ -281,6 +296,7 @@ Currently the app is optimized for multi-character dialogue. Add a dedicated mod
 | Active recall / reveal modes | ⭐⭐⭐ | High | Low | **P0** |
 | Cue-only mode | ⭐⭐⭐ | High | Low | **P0** |
 | Line-level progress tracking | — | High | Low | **P0** |
+| Microphone line verification | ⭐⭐⭐ | Very high | Medium | **P0** |
 | Scene looping | ⭐⭐ | High | Low | **P0** |
 | Beat annotation | ⭐⭐⭐ | High | Medium | **P1** |
 | Per-character voice picker | ⭐⭐ | High | Medium | **P1** |
@@ -290,7 +306,7 @@ Currently the app is optimized for multi-character dialogue. Add a dedicated mod
 | Subscription (Stripe) | — | Revenue | Medium | **P2** |
 | Collaboration / cast sharing | ⭐ | High | High | **P2** |
 | PWA / mobile install | — | Retention | Low | **P2** |
-| Speech recognition cue detection | ⭐⭐ | Very high | High | **P3** |
+| Hands-free live cue detection | ⭐⭐ | Very high | High | **P3** |
 | AI pronunciation coach | — | Medium | High | **P3** |
 
 ---
@@ -299,7 +315,7 @@ Currently the app is optimized for multi-character dialogue. Add a dedicated mod
 
 ```
 Sprint 1 (2 wks): Active recall modes + cue-only mode + line tracking DB
-Sprint 2 (2 wks): Scene looping + beat markers + per-character voice picker
+Sprint 2 (2 wks): Microphone line verification + scene looping + beat markers
 Sprint 3 (2 wks): Spaced repetition algorithm + daily queue + streaks
 Sprint 4 (2 wks): Progress dashboard + sleep scheduling tip + analytics (PostHog)
 Sprint 5 (2 wks): Stripe subscription + feature gates + LGPD compliance
